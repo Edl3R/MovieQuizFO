@@ -91,10 +91,10 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
 
     // MARK: - Private UI
     private func restartGame() {
-            currentQuestionIndex = 0
-            correctAnswers = 0
-            self.questionFactory?.requestNextQuestion()
-       }
+        currentQuestionIndex = 0
+        correctAnswers = 0
+        self.questionFactory?.requestNextQuestion()
+    }
     
     private func show(quiz step: QuizStepViewData) {
         posterImageView.image = step.image
@@ -162,7 +162,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
                 buttonText: "Сыграть ещё раз")
 
             show(quiz: result)
-        }else{
+        } else {
             questionFactory?.requestNextQuestion()
             showLoadingIndicator()
         }
