@@ -1,171 +1,195 @@
 import UIKit
+import Foundation
+// MARK: - MovieQuizViewController
 
-final class MovieQuizViewController: UIViewController {
+final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
 
-    @IBOutlet private weak var upQuestionLabel: UILabel!
-    @IBOutlet private var imageView: UIImageView!
-    @IBOutlet private var textLabel: UILabel!
-    @IBOutlet private var counterLabel: UILabel!
-    @IBOutlet private weak var yesButton: UIButton!
-    @IBOutlet private weak var noButton: UIButton!
+    // MARK: - Outlets
+    
+    @IBOutlet private weak var questionTitleLabel: UILabel!
+    @IBOutlet private weak var posterImageView: UIImageView!
+    @IBOutlet private weak var questionTextLabel: UILabel!
+    @IBOutlet private weak var questionCounterLabel: UILabel!
+    @IBOutlet private weak var yesAnswerButton: UIButton!
+    @IBOutlet private weak var noAnswerButton: UIButton!
+    @IBOutlet private weak var activityIndicator: UIActivityIndicatorView!
+
+    // MARK: - Private Properties
+    
     private var currentQuestionIndex = 0
     private var correctAnswers = 0
-
-    struct QuizQuestion {
-        let image: String
-        let text: String
-        let correctAnswer: Bool
+    private let questionsAmount: Int = 10
+    private var questionFactory: QuestionFactoryProtocol?
+    private var currentQuestion: QuizQuestion?
+    private lazy var statisticService: StatisticServiceProtocol = StatisticService()
+    
+    // MARK: - Lifecycle
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        yesAnswerButton.layer.cornerRadius = 15
+        noAnswerButton.layer.cornerRadius = 15
+        yesAnswerButton.layer.masksToBounds = true
+        noAnswerButton.layer.masksToBounds = true
+        posterImageView.layer.cornerRadius = 20
+        posterImageView.layer.masksToBounds = true
+        activityIndicator.hidesWhenStopped = true
+        
+        
+        questionTitleLabel.font = UIFont(name: "YS Display Medium", size: 20) ?? .systemFont(ofSize: 20, weight: .medium)
+        questionCounterLabel.font = UIFont(name: "YS Display Medium", size: 20) ?? .systemFont(ofSize: 20, weight: .medium)
+        yesAnswerButton.titleLabel?.font = UIFont(name: "YS Display Medium", size: 20) ?? .systemFont(ofSize: 20, weight: .medium)
+        noAnswerButton.titleLabel?.font = UIFont(name: "YS Display Medium", size: 20) ?? .systemFont(ofSize: 20, weight: .medium)
+        questionTextLabel.font = UIFont(name: "YS Display Bold", size: 23) ?? .systemFont(ofSize: 23, weight: .bold)
+        
+        questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
+        questionFactory?.loadData()
+        showLoadingIndicator()
     }
 
-    struct QuizStepViewModel {
-        let image: UIImage
-        let question: String
-        let questionNumber: String
+    // MARK: - QuestionFactoryDelegate
+
+    func didReceiveNextQuestion(question: QuizQuestion?) {
+        guard let question = question else { return }
+        currentQuestion = question
+        let viewModel = makeStepViewData(from: question)
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.show(quiz: viewModel)
+        }
+        
+    }
+    
+    func didLoadDataFromServer() {
+        hideLoadingIndicator()
+        questionFactory?.requestNextQuestion()
     }
 
-
-    struct QuizResultsViewModel {
-        let title: String
-        let text: String
-        let buttonText: String
+    func didFailToLoadData(with error: Error) {
+        showNetworkError(message: error.localizedDescription)
     }
-    @IBAction private func yesButtonClicked(_ sender: UIButton) {
-        showAnswerResult(
-            isCorrect: questions[currentQuestionIndex].correctAnswer == true
-        )
-    }
-
-    @IBAction private func noButtonClicked(_ sender: UIButton) {
-        showAnswerResult(
-            isCorrect: questions[currentQuestionIndex].correctAnswer == false
-        )
+    // MARK: - Actions
+    
+    @IBAction private func yesAnswerTapped(_ sender: UIButton) {
+        
+        guard let currentQuestion = currentQuestion else {
+            return
+        }
+        
+        showAnswerResult(isCorrect: currentQuestion.correctAnswer)
     }
 
-    private func convert(model: QuizQuestion) -> QuizStepViewModel {
-        let questionStep = QuizStepViewModel(
-            image: UIImage(named: model.image) ?? UIImage(),
-            question: model.text,
-            questionNumber: "\(currentQuestionIndex + 1)/\(questions.count)"
-        )
-        return questionStep
+    @IBAction private func noAnswerTapped(_ sender: UIButton) {
+        
+        guard let currentQuestion = currentQuestion else {
+            return
+        }
+        
+        showAnswerResult(isCorrect: !currentQuestion.correctAnswer)
     }
 
-    private func show(quiz step: QuizStepViewModel) {
-        imageView.image = step.image
-        textLabel.text = step.question
-        counterLabel.text = step.questionNumber
-
-        imageView.layer.borderWidth = 0
+    // MARK: - Private UI
+    private func restartGame() {
+        currentQuestionIndex = 0
+        correctAnswers = 0
+        self.questionFactory?.requestNextQuestion()
     }
+    
+    private func show(quiz step: QuizStepViewData) {
+        posterImageView.image = step.image
+        questionTextLabel.text = step.question
+        questionCounterLabel.text = step.questionNumber
+        posterImageView.layer.borderWidth = 0
+        currentQuestionIndex += 1
+        hideLoadingIndicator()
+    }
+    private func show(quiz result: QuizResultViewData) {
+        let model = AlertModel(title: result.title,
+                               text: result.text,
+                               buttonText: result.buttonText
+        ) { [weak self] in
+            guard let self = self else { return }
 
+            self.restartGame()
+            showLoadingIndicator()
+        }
+        
+        AlertPresenter.show(in: self, model: model)
+    }
+    
     private func showAnswerResult(isCorrect: Bool) {
         if isCorrect { correctAnswers += 1 }
 
-        imageView.layer.masksToBounds = true
-        imageView.layer.borderWidth = 8
-        imageView.layer.borderColor = isCorrect ? UIColor.ypGreen.cgColor : UIColor.ypRed.cgColor
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        posterImageView.layer.masksToBounds = true
+        posterImageView.layer.borderWidth = 8
+        posterImageView.layer.borderColor = (isCorrect ? UIColor.ypGreen : UIColor.ypRed).cgColor
+        noAnswerButton.isEnabled = false
+        yesAnswerButton.isEnabled = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self else { return }
+            noAnswerButton.isEnabled = true
+            yesAnswerButton.isEnabled = true
             self.showNextQuestionOrResults()
         }
     }
 
+    private func showLoadingIndicator() {
+        activityIndicator.startAnimating()
+    }
+    private func hideLoadingIndicator() {
+        activityIndicator.stopAnimating()
+    }
+    
+    // MARK: - Private Helpers
+    
     private func showNextQuestionOrResults() {
-        if currentQuestionIndex == questions.count - 1 {
-            let text = "Ваш результат: \(correctAnswers)/\(questions.count)"
-            let viewModel = QuizResultsViewModel(
+        
+        
+        if currentQuestionIndex == questionsAmount {
+            
+            statisticService.store(correct: correctAnswers, total: questionsAmount)
+            
+            let bestGame = statisticService.bestGame
+            let result: QuizResultViewData = QuizResultViewData(
                 title: "Этот раунд окончен!",
-                text: text,
-                buttonText: "Сыграть ещё раз"
-            )
-            show(quiz: viewModel)
+                text: """
+                Ваш результат: \(correctAnswers)/\(questionsAmount)
+                Количество сыгранных квизов: \(statisticService.gamesCount)
+                Рекорд: \(statisticService.bestGame.correct)/\(questionsAmount) (\(bestGame.date.dateTimeString))
+                Средняя точность: \(String(format: "%.2f", statisticService.totalAccuracy))%
+                """,
+                buttonText: "Сыграть ещё раз")
 
+            show(quiz: result)
         } else {
-            currentQuestionIndex += 1
-
-            let nextQuestion = questions[currentQuestionIndex]
-            show(quiz: convert(model: nextQuestion))
+            questionFactory?.requestNextQuestion()
+            showLoadingIndicator()
         }
     }
-
-    private func show(quiz result: QuizResultsViewModel) {
-        let alert = UIAlertController(
-            title: result.title,
-            message: result.text,
-            preferredStyle: .alert)
-
-        let action = UIAlertAction(title: result.buttonText, style: .default) { _ in
+    
+    private func showNetworkError(message: String) {
+        hideLoadingIndicator()
+        
+        let model = AlertModel(title: "Ошибка",
+                               text: message,
+                               buttonText: "Попробовать еще раз") { [weak self] in
+            guard let self = self else { return }
+            
             self.currentQuestionIndex = 0
             self.correctAnswers = 0
-
-            let firstQuestion = self.questions[self.currentQuestionIndex]
-            let viewModel = self.convert(model: firstQuestion)
-            self.show(quiz: viewModel)
+            self.questionFactory?.loadData()
+            self.questionFactory?.requestNextQuestion()
         }
-
-        alert.addAction(action)
-
-        self.present(alert, animated: true, completion: nil)
+        
+        AlertPresenter.show(in: self, model: model)
     }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        yesButton.layer.cornerRadius = 15
-        noButton.layer.cornerRadius = 15
-        yesButton.layer.masksToBounds = true
-        noButton.layer.masksToBounds = true
-        imageView.layer.cornerRadius = 20
-        imageView.layer.masksToBounds = true
-        upQuestionLabel.font = UIFont(name: "YS Display Medium", size: 20)
-        counterLabel.font = UIFont(name: "YS Display Medium", size: 20)
-        yesButton.titleLabel?.font = UIFont(name: "YS Display Medium", size: 20)
-        noButton.titleLabel?.font = UIFont(name: "YS Display Medium", size: 20)
-        textLabel.font = UIFont(name: "YS Display Bold", size: 23)
-
-        let currentQuestion = questions[currentQuestionIndex]
-        show(quiz: convert(model: currentQuestion))
+    private func makeStepViewData(from model: QuizQuestion) -> QuizStepViewData {
+        QuizStepViewData(
+            image: UIImage(data: model.image) ?? UIImage(),
+            question: model.text,
+            questionNumber: "\(currentQuestionIndex + 1)/\(questionsAmount)"
+        )
     }
-
-    private let questions: [QuizQuestion] = [
-        QuizQuestion(
-            image: "The Godfather",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: true),
-        QuizQuestion(
-            image: "The Dark Knight",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: true),
-        QuizQuestion(
-            image: "Kill Bill",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: true),
-        QuizQuestion(
-            image: "The Avengers",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: true),
-        QuizQuestion(
-            image: "Deadpool",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: true),
-        QuizQuestion(
-            image: "The Green Knight",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: true),
-        QuizQuestion(
-            image: "Old",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: false),
-        QuizQuestion(
-            image: "The Ice Age Adventures of Buck Wild",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: false),
-        QuizQuestion(
-            image: "Tesla",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: false),
-        QuizQuestion(
-            image: "Vivarium",
-            text: "Рейтинг этого фильма больше чем 6?",
-            correctAnswer: false)
-    ]
 }
