@@ -43,27 +43,27 @@ final class StatisticService: StatisticServiceProtocol {
     private var correctAnswers: Int {
         get {
             return storage.integer(forKey: Keys.correctAnswers.rawValue)
-        }
+            }
         set {
             storage.set(newValue, forKey: Keys.correctAnswers.rawValue)
+            }
         }
-    }
     private var totalQuestionsAsked: Int {
         get {
             return storage.integer(forKey: Keys.totalQuestionsAsked.rawValue)
-        }
+            }
         set {
             storage.set(newValue, forKey: Keys.totalQuestionsAsked.rawValue)
+            }
         }
-    }
     
     func store(correct count: Int, total amount: Int) {
-        if bestGame.correct < count {
-            bestGame = GameResult(correct: count, total: amount, date: Date())
+            if bestGame.correct < count {
+                bestGame = GameResult(correct: count, total: amount, date: Date())
+            }
+            gamesCount += 1
+            correctAnswers += count
+            totalQuestionsAsked += amount
         }
-        gamesCount += 1
-        correctAnswers += count
-        totalQuestionsAsked += amount
-    }
-    
+
 }
