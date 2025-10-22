@@ -77,6 +77,10 @@
 		AD7AFA542836189F00399704 /* Array+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Extensions.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		1CE704B52E78AF8400F1C49C /* MovieQuizTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MovieQuizTests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		1CE704B12E78AF8400F1C49C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -157,6 +161,7 @@
 			isa = PBXGroup;
 			children = (
 				AD1ABAB02831907B00B3E448 /* MovieQuiz */,
+				1CE704B52E78AF8400F1C49C /* MovieQuizTests */,
 				AD1ABAAF2831907B00B3E448 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -209,6 +214,9 @@
 			);
 			dependencies = (
 				1CE704B92E78AF8400F1C49C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				1CE704B52E78AF8400F1C49C /* MovieQuizTests */,
 			);
 			name = MovieQuizTests;
 			packageProductDependencies = (
