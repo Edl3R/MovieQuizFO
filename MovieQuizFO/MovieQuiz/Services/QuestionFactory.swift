@@ -3,7 +3,7 @@ import Foundation
 class QuestionFactory: QuestionFactoryProtocol {
     private let moviesLoader: MoviesLoading
     private weak var delegate: QuestionFactoryDelegate?
-
+    
     init(moviesLoader: MoviesLoading, delegate: QuestionFactoryDelegate?) {
         self.moviesLoader = moviesLoader
         self.delegate = delegate
@@ -26,7 +26,7 @@ class QuestionFactory: QuestionFactoryProtocol {
                 }
             }
         }
-    }  
+    }
     
     
     func requestNextQuestion() {
@@ -37,7 +37,7 @@ class QuestionFactory: QuestionFactoryProtocol {
             guard let movie = self.movies[safe: index] else { return }
             
             var imageData = Data()
-           
+            
             do {
                 imageData = try Data(contentsOf: movie.resizedImageURL)
             } catch {
@@ -50,8 +50,8 @@ class QuestionFactory: QuestionFactoryProtocol {
             let correctAnswer = rating > random
             
             let question = QuizQuestion(image: imageData,
-                                         text: text,
-                                         correctAnswer: correctAnswer)
+                                        text: text,
+                                        correctAnswer: correctAnswer)
             
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
